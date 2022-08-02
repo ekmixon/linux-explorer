@@ -8,11 +8,13 @@ class Tool(object):
     def __init__(self):
         self._proc_object = None
         self._proc_cmdline = []
-        self._output_path = os.path.join(os.path.dirname(__file__),
-                                         self.__class__.__name__.lower() + '.log')
+        self._output_path = os.path.join(
+            os.path.dirname(__file__), f'{self.__class__.__name__.lower()}.log'
+        )
+
 
         if not self._is_installed():
-            raise Exception('error: %s not installed' % self.__class__.__name__)
+            raise Exception(f'error: {self.__class__.__name__} not installed')
 
     def _is_installed(self):
         raise NotImplementedError()
@@ -35,7 +37,11 @@ class Tool(object):
         # set returncode attr
         self._proc_object.poll()
 
-        return 'running' if self._proc_object.returncode == None else self._parse_status(self._proc_object.returncode)
+        return (
+            'running'
+            if self._proc_object.returncode is None
+            else self._parse_status(self._proc_object.returncode)
+        )
 
     def _parse_status(self, status):
         ''' override this function to handle different exit codes '''

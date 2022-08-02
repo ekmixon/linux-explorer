@@ -92,22 +92,24 @@ def mem_strings(pid):
 
     start = request.args.get('start', '')
     end = request.args.get('end', '')
-    filename = "%s.%s_%s" % (pid, start, end)
-    dump_file = os.path.join(STRINGS, filename + ".dmp")
-    strings_file = os.path.join(STRINGS, filename + ".strings")
+    filename = f"{pid}.{start}_{end}"
+    dump_file = os.path.join(STRINGS, f"{filename}.dmp")
+    strings_file = os.path.join(STRINGS, f"{filename}.strings")
 
     def dump(pid, start, end, output_file):
         os.system('gdb --batch --pid %d -ex \"dump memory %s 0x%s 0x%s\"' % (pid, output_file, start, end))
 
     def strings(path, output_file):
-        os.system('strings %s > %s' % (path, output_file))
+        os.system(f'strings {path} > {output_file}')
 
     dump(pid, start, end, dump_file)
     strings(dump_file, strings_file)
 
     os.remove(dump_file)
 
-    return send_from_directory(directory=STRINGS, filename=filename + '.strings', as_attachment=True)
+    return send_from_directory(
+        directory=STRINGS, filename=f'{filename}.strings', as_attachment=True
+    )
 
 
 @app.route('/fs/hash')
@@ -146,7 +148,15 @@ def vt_upload():
     path = request.args.get('path', '')
 
     if not os.path.isfile(path):
-        return jsonify({"error": "%s is not a valid file or the system could not access it" % path}), 200
+        return (
+            jsonify(
+                {
+                    "error": f"{path} is not a valid file or the system could not access it"
+                }
+            ),
+            200,
+        )
+
 
     files = {'file': (os.path.basename(path), open(path, 'rb'))}
 
@@ -166,7 +176,15 @@ def intezer_upload():
     path = request.args.get('path', '')
 
     if not os.path.isfile(path):
-        return jsonify({"error": "%s is not a valid file or the system could not access it" % path}), 200
+        return (
+            jsonify(
+                {
+                    "error": f"{path} is not a valid file or the system could not access it"
+                }
+            ),
+            200,
+        )
+
 
     try:
         api.set_global_api(config.INTEZER_APIKEY)
@@ -176,7 +194,7 @@ def intezer_upload():
 
         analysis.send(True)
     except errors.IntezerError as e:
-        return jsonify({"error": "Error occurred: " + e.args[0]}), 200
+        return jsonify({"error": f"Error occurred: {e.args[0]}"}), 200
 
     return jsonify(analysis.result()), 200
 
@@ -187,13 +205,13 @@ def otx_report(type, indicator):
         Supported indicator types: "IPv4", "IPv6", "domain", "hostname", "URL", "FileHash-MD5", "FileHash-SHA1", "FileHash-SHA256", "CVE". '''
 
     if type not in IndicatorTypes.to_name_list(IndicatorTypes.supported_api_types):
-        raise Exception("Indicator type %s not supported!" % type)
+        raise Exception(f"Indicator type {type} not supported!")
 
     def find_by_type(type):
         for indicator in IndicatorTypes.supported_api_types:
             if indicator.name == type:
                 return indicator
-        raise Exception("Indicator type %s not supported!" % type)
+        raise Exception(f"Indicator type {type} not supported!")
 
     if not len(config.OTX_APIKEY):
         return jsonify({"error": "NO API KEY"}), 200
@@ -212,11 +230,22 @@ def malshare_report(hash_):
         return jsonify({"error": "NO API KEY"}), 200
 
     response = requests.get(
-        'https://malshare.com/api.php?api_key=%s&action=details&hash=%s' % (config.MALSHARE_APIKEY, hash_),
-        headers={'Accept-Encoding': 'gzip, deflate', 'User-Agent': 'gzip,  Linux Expl0rer'})
+        f'https://malshare.com/api.php?api_key={config.MALSHARE_APIKEY}&action=details&hash={hash_}',
+        headers={
+            'Accept-Encoding': 'gzip, deflate',
+            'User-Agent': 'gzip,  Linux Expl0rer',
+        },
+    )
 
-    return jsonify(response.json() if not response.text.startswith(
-        'Sample not found by hash (') else response.text), response.status_code
+
+    return (
+        jsonify(
+            response.text
+            if response.text.startswith('Sample not found by hash (')
+            else response.json()
+        ),
+        response.status_code,
+    )
 
 
 @app.route('/logs/<string:file>')
